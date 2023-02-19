@@ -1,0 +1,402 @@
+---
+title: "HW1"
+author: "Emma-Marie Vitskov Jørgensen"
+date: "2023-02-07"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Option 2 -Chicago crime: 
+You wish to travel to Chicago for a study stay but wish to stay away from the most crime-ridden areas. You have a friend at Evanston, who invited you in. Is it safe to stay at her place? Make a map that allows both of you to explore the local situation. Use the ChicagoCrime.csv (attached here or on Github) to create an interactive map of murders in the city. Is a heatmap or clustered points better?
+
+  - Create a standalone .html map in Leaflet showing at least basic topography and relief, and load in the table of points. Make sure she can see the locations of crime and crime attributes when you hovers over the point markers. 
+  - Consider adding elements such as minimap() and measure() for easier map interaction
+  - Can you create a heatmap of crime?
+  - Explore differentiating the markers (e.g. by color for different kinds of crime)
+  - Explore the option of clustering markers with addMarkers(clusterOptions = markerClusterOptions()). Do you recommend marker clustering here?
+  
+  
+Loading packages:
+```{r packages}
+library(leaflet)
+library(tidyverse)
+library(readr)
+library(htmlwidgets)
+#I don't know if all packages are neccessary
+```
+  
+Loading the data into R:
+```{r loading data}
+
+ChicagoCrimes2017 <- read_csv("../data/ChicagoCrimes2017.csv")
+
+```
+Checking the different crime types:
+```{r unique crimes}
+unique(ChicagoCrimes2017$`Primary Type`) # too many options for mapping
+```
+
+There are 32 different crime types, which are too many options to map. Therefore I extract only the six most common crime types: 
+
+```{r top crimes}
+# Get 6 top crimes
+topcrimes <- ChicagoCrimes2017 %>% 
+  group_by(`Primary Type`) %>% 
+  tally() %>% 
+  arrange(desc(n)) %>% 
+  slice(1:6) %>% 
+  pull(`Primary Type`)
+```
+
+This data can be filtered by top 6 crimes or by the specific crime types, which I find interesting. The filter() function find the rows, which match a certain condition: 
+```{r filter data}
+# Filter data by 6 top crimes or by stuff you are interested in 
+crime6 <- ChicagoCrimes2017%>% 
+  filter(`Primary Type`%in% topcrimes) %>% 
+  filter(!is.na(Latitude))
+
+#Filter only some self-chosen crime types
+crimeCH <- ChicagoCrimes2017 %>%
+    filter(`Primary Type` %in% c("HOMICIDE","SEX OFFENSE", "NARCOTICS", "MOTOR VEHICLE THEFT", "ARSON", "LIQUOR LAW VIOLATION")) %>% 
+    filter(!is.na(Latitude))
+
+#Count the number of each of the six top crime types
+crime6 %>% 
+  group_by(`Primary Type`) %>% 
+  tally()
+
+#Count the number of each of the seix selfchosen crime types
+crimeCH %>% 
+  group_by(`Primary Type`) %>% 
+  tally()
+```
+```{r colored markers}
+library(lubridate)
+library(hms)
+
+crime6 <- crime6 %>%
+  mutate(time = as_hms(mdy_hms(Date))) %>% 
+  mutate(hour = hour(time))
+
+# 1 Create a palette that maps different crime times to colors
+# does time work?
+ifelse(crime6$hour > 1 & crime6$hour < 12, TRUE, FALSE)
+
+summary(crime6$hour)
+
+getColor <- function(crime6) {
+  sapply(crime6$time, function(time) {
+    if(time > 00:01:00 & time < 12:00:00) {
+      "green"
+    } else if(time > 12:00:01 & time < 24:00:00) {
+      "orange"
+    } else {
+      "red"
+    } })
+}
+
+getColor <- function(crime6) {
+  sapply(crime6$hour, function(hour) {
+    if(hour > 1 & hour < 12) {
+      "green"
+    } else if(hour > 12 & hour < 24) {
+      "orange"
+    } else {
+      "red"
+    } })
+}
+
+icons <- awesomeIcons(
+  icon = 'ios-close',
+  iconColor = 'black',
+  library = 'ion',
+  markerColor = getColor(crime6)
+)
+
+# Filter out homicides only
+(homicides <- ChicagoCrimes2017 %>%
+    filter(`Primary Type` == "HOMICIDE"))
+
+leaflet(homicides) %>% addTiles() %>%
+  addAwesomeMarkers(icon = icons, label = ~Date)
+
+######## 2 Create a palette that gives each crime type an individual colour
+
+pal <- colorFactor(c("navy", "red", "orange", "yellow", "pink","brown"), domain = topcrimes)
+
+crime6 %>% 
+  slice(1:1000) %>% 
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(
+    color = ~pal(crime6$`Primary Type`),
+    stroke = FALSE, fillOpacity = 0.5
+  )
+```
+
+
+#Creating a heat map
+
+```{r heat map}
+
+# Filter out homicides only
+(homicides <- ChicagoCrimes2017 %>%
+    filter(`Primary Type` == "HOMICIDE"))
+
+# Plot on a map letting R Leaflet pick Longitude and Latitude automagically 
+
+# addMarkers() and related functions will automatically check data frames for columns called 
+# lng/long/longitude and lat/latitude (case-insensitively). If your coordinate columns have any other names, 
+# you need to explicitly identify them using the lng and lat arguments. 
+# Such as `addMarkers(lng = ~Longitude, lat = ~Latitude).
+
+leaflet(data = homicides) %>%
+  addTiles() %>%
+  addMarkers(label = ~Date)
+
+# Heatmap is in the extras!
+
+library(leaflet.extras)
+
+homocide_heatmap <- homicides %>% 
+  filter(!is.na(Latitude)) %>% 
+  leaflet() %>%
+  addTiles() %>%
+  addHeatmap(lng=~as.numeric(Longitude),
+             lat=~as.numeric(Latitude),
+             radius = 9) %>% 
+  addMiniMap(tiles = 'Esri.WorldTopoMap', toggleDisplay = TRUE,
+             position = "bottomright") %>%
+  addMeasure(
+    position = "bottomleft",
+    primaryLengthUnit = "meters",
+    primaryAreaUnit = "sqmeters",
+    activeColor = "#3D535D",
+    completedColor = "#7D4479")
+
+```
+
+
+Saving the heatmap as an individual HTML document:
+```{r save html 1}
+# save the map as HTML document
+library(htmlwidgets)
+saveWidget(homocide_heatmap, "homocide_heatmap.html", selfcontained = TRUE)
+```
+
+Now I create a map with even more nice features:
+```{r customize icons}
+# Customize your icons with The awesome markers plugin. 
+
+# Instead of using addMarkers(), use addAwesomeMarkers() to control the appearance of the markers
+# using icons from the Font Awesome, Bootstrap Glyphicons, and Ion icons icon libraries.
+#https://github.com/lvoogdt/Leaflet.awesome-markers
+#https://ionicons.com/
+#https://fontawesome.com/icons?from=io
+
+icons <- awesomeIcons(
+  icon = 'bolt',
+  iconColor = 'orange',
+  markerColor = "black",
+  library = 'fa'
+)
+
+#create map with black markers with lightnings inside
+leaflet(data = homicides) %>%
+  addTiles() %>%
+  addAwesomeMarkers(icon = icons)
+
+
+# Cluster your datapoints to prevent overlap and improve readability
+leaflet(data = homicides) %>%
+  addTiles() %>%
+  addMarkers(clusterOptions = markerClusterOptions())
+
+# Add labels
+leaflet(data = homicides) %>%
+  addTiles() %>%
+  addMarkers(clusterOptions = markerClusterOptions(), 
+             label = ~Date)
+
+
+# Add richer labels with type of crime
+leaflet(data = homicides) %>%
+  addTiles() %>%
+  addMarkers(clusterOptions = markerClusterOptions(), 
+             label = paste0("Date:", homicides$Date,
+                                                                     "<br> Description:", homicides$Description))
+
+#and date
+Chicago_homicides2017 <- leaflet(data = homicides) %>%
+  addTiles() %>%
+  addMarkers(clusterOptions = markerClusterOptions(), 
+             label = paste0("Date:", homicides$Date,
+                                                                     "<br> Description:", homicides$Description))
+Chicago_homicides2017
+```
+
+Now the map is nice, I save it as an individual HTML document:
+```{r save html 2}
+# save the map as HTML document
+library(htmlwidgets)
+saveWidget(Chicago_homicides2017, "Chicago17.html", selfcontained = TRUE)
+```
+
+
+__My work (the work I handed in) before trying Adelas solution__
+
+To test my skills learned in the lesson on Monday, I start by creating a map over Chicago using the location of Evanston (where the friend who I visit lives) found on Google maps as the center of the map:
+```{r map 1}
+ChicagoMap <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addProviderTiles("Esri.WorldImagery", 
+                   options = providerTileOptions(opacity=0.5)) %>% 
+  setView(lng = -87.8060957, lat = 41.975578, zoom = 10) # sets what the map should be centered on
+
+
+ChicagoMap  # Print the map
+
+```
+
+Creating a simple map without special features: 
+
+```{r map 2}
+ChiCrimesMap1 <- leaflet() %>%
+  setView(-87.8060957, 41.975578, zoom = 10) %>% # setting the center of the map as a centered place in Chicago found on Google maps 
+  addTiles() %>% 
+  addMarkers(lng = ChicagoCrimes2017$Longitude, 
+             lat = ChicagoCrimes2017$Latitude,
+             popup = paste0(ChicagoCrimes2017$`Location Description`, "<br>",
+                            ChicagoCrimes2017$`Primary Type`),
+             clusterOptions = markerClusterOptions())
+
+ChiCrimesMap1 #print map
+
+```
+
+
+Creating a map with the data from the ´ChicagoCrimes2017´ data with special features:
+
+```{r crime map 3}
+
+# Bring in a choice of esri background layers  
+
+l_ChiCrimes <- leaflet() %>%   # assign the base location to an object
+  setView(-87.8060957,41.975578, zoom = 10)
+
+esri <- grep("^Esri", providers, value = TRUE)
+
+#NB run the next three lines together for for-loop to wirk
+for (provider in esri) {
+  l_ChiCrimes <- l_ChiCrimes %>% addProviderTiles(provider, group = provider)
+}
+
+#Creating the map
+
+
+ChiCrimes2017Map <- l_ChiCrimes %>%
+  addTiles() %>% 
+ addMarkers(lng = ChicagoCrimes2017$Longitude, 
+             lat = ChicagoCrimes2017$Latitude,
+             popup = paste0(ChicagoCrimes2017$`Location Description`, "<br>",
+                            ChicagoCrimes2017$`Primary Type`),
+             clusterOptions = markerClusterOptions()) %>% # adding the markers showing the crimes types and places
+  addLayersControl(baseGroups = names(esri),
+                   options = layersControlOptions(collapsed = FALSE)) %>%
+  addMiniMap(tiles = esri[[1]], toggleDisplay = TRUE, # adding a mini map in the corner
+             position = "bottomright") %>%
+  addMeasure(
+    position = "bottomleft",
+    primaryLengthUnit = "meters",
+    primaryAreaUnit = "sqmeters",
+    activeColor = "#3D535D",
+    completedColor = "#7D4479") %>% # adding a mesurement feature
+  htmlwidgets::onRender("
+                        function(el, x) {
+                        var myMap = this;
+                        myMap.on('baselayerchange',
+                        function (e) {
+                        myMap.minimap.changeLayer(L.tileLayer.provider(e.name));
+                        })
+                        }") %>% 
+addControl("", position = "topright")
+
+ChiCrimes2017Map # print map
+
+#create a color palette and make each crime type a color
+
+#TRY NUMBER 1
+
+#pal <- colorNumeric(
+ # palette = "Blues",
+  #domain = ChicagoCrimes2017$Description)
+
+#nrow(ChicagoCrimes2017)
+
+#TRY NUMBER 2
+
+#length(unique(ChicagoCrimes2017[["Description"]])) # the number of unique values/crimes is 32
+#binpal <- colorBin("Blues", 1, 32, pretty = FALSE)
+
+#ChiCrimes2017Map %>%
+ # addMarkers(lng = ChicagoCrimes2017$Longitude, 
+  #           lat = ChicagoCrimes2017$Latitude,
+   #          popup = paste0(ChicagoCrimes2017$`Location Description`, "<br>",
+    #                        ChicagoCrimes2017$Description),
+     #        color = binpal()
+      #       )
+            
+
+
+#TRY NUMBER 3
+
+#ChicagoCrimes2017$Description <- factor(sample.int(5L, nrow(ChicagoCrimes2017), TRUE))
+
+#factpal <- colorFactor(topo.colors(5), ChicagoCrimes2017$`Primary Type`)
+
+#ChiCrimes2017Map %>%
+#  addMarkers(lng = ChicagoCrimes2017$Longitude, 
+#             lat = ChicagoCrimes2017$Latitude,
+#             popup = paste0(ChicagoCrimes2017$`Location Description`, "<br>",
+#                            ChicagoCrimes2017$`Primary Type`),
+#             color = ~factpal(ChicagoCrimes2017$`Primary Type`),
+#             clusterOptions = markerClusterOptions())
+
+#TRY NUMBER 4
+#crimetypes <- ChicagoCrimes2017$`Primary Type`
+
+#getColor <- function(crimetypes) {
+ # sapply(ChicagoCrimes2017$`Primary Type`, function(crimetypes){
+  #  if(ChicagoCrimes2017$`Primary Type` == 1){
+   #   "red"
+   # } else{
+    #  "blue"
+#    }
+#    })
+#}
+
+#icons <- awesomeIcons(markerColor = getColor(crimetypes))
+
+#ChiCrimes2017Map <- l_ChiCrimes %>%
+ # addTiles() %>% 
+ #addMarkers(lng = ChicagoCrimes2017$Longitude, 
+  #           lat = ChicagoCrimes2017$Latitude,
+   #          popup = paste0(ChicagoCrimes2017$`Location Description`, "<br>",
+    #                        ChicagoCrimes2017$`Primary Type`),
+     #        clusterOptions = markerClusterOptions()) %>% # adding the markers showing the crimes types and places
+#  addAwesomeMarkers(icon=icons
+    
+ # )
+
+```
+
+I recommend using a cluster function on this map, because Chicago is a large city, and a lot of crimes has been committed. Therefore, the clusters gives a good overview of the different areas of the city and how many crimes there has been committed in each area. 
+
+Crimes in the Evanston area is not part of the data set, but the area of Chicago which lies up to Evanston, a lot of crimes are committed. Therefore most of the Evanston area seems safe, but the southern part might be a bit unsafe do to the many crimes close by. 
+
+Unfortunately, I wasn't able to create a heatmap and I also couldn't change the color of the markers :-( I tryed to change the colors in four different ways (from the book "Leaflet for R"), and my attempts can be seen in line 117-180. 
+
