@@ -414,7 +414,7 @@ plotRGB(aarhus, stretch="linear")
 plot(aarhus);plotRGB(aarhus, add = TRUE)
 
 plot(aarhus);plot(elevation, add=TRUE) 
-#answer: no, the images can't be plottet together --> because they have different CRS's?
+#answer: no, the images can't be plottet together --> because they have different CRS's maybee?
 
 
 ```
@@ -446,7 +446,7 @@ st_crs(forests) # ETRS89 UTM 32N
 st_crs(playgrounds) #there is no CRS
 
 # Assign the CRS to playgrounds
-crs_1 <- CRS("+init=epsg:4326")
+crs_1 <- 4326
 st_crs(playgrounds) <- crs_1
 
 st_crs(playgrounds) #DID THIS WORK??? I can't see a difference
@@ -457,7 +457,10 @@ crs(aarhus, asText = TRUE) # +proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs
 crs(elevation, asText = TRUE) # +proj=longlat +ellps=WGS84 +no_defs
 
 # Write here the proj4string for the aarhus layer
-crs_2 <- "___" 
+crs_2 <- "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs" 
+crs(elevation) <- crs_2
+
+crs(elevation) # the crs has changed!
 
 ```
 
@@ -522,9 +525,10 @@ library("tmap")
 
 # Plot aarhus and playgrounds (run both lines together)
 # Do you see the playgrounds?
-plotRGB(aarhus, alpha = 99, stretch = "lin")
+plotRGB(aarhus, alpha = 100, stretch = "lin")
 plot(playgrounds, add = TRUE)
 
+#I can't see the playgraounds. Therefore I set the crs to the same in aarhus and playgrounds. 
 #transform CRS
 # Get the CRS from the aarhus object
 the_crs <- crs(aarhus, asText = TRUE) #it is +proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs
@@ -537,7 +541,7 @@ playgrounds_crs <- st_transform(playgrounds, crs = the_crs)
 st_crs(playgrounds_crs) # +proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs
 
 # Again, plot aarhus and playgrounds (run both lines together)
-plotRGB(aarhus, stretch = "lin")
+plotRGB(aarhus, alpha = 100, stretch = "lin")
 plot(playgrounds_crs, col="green", lwd = 3, add = TRUE)
 
 # Simply run the tmap code
