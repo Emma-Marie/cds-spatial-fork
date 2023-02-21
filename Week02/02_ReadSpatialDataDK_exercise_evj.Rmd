@@ -519,7 +519,7 @@ Make sure `sf`, `raster` and `tmap` are loaded in your workspace.
 * Run the given `tmap` code. Note that `tm_rgb()` is used for multi-layered raster
 
 ```{r plot, eval=FALSE}
-install.packages("tmap")
+#install.packages("tmap")
 library("tmap")
 
 
@@ -528,14 +528,13 @@ library("tmap")
 plotRGB(aarhus, alpha = 100, stretch = "lin")
 plot(playgrounds, add = TRUE)
 
-#I can't see the playgraounds. Therefore I set the crs to the same in aarhus and playgrounds. 
+#I can't see the playgrounds. Therefore I set the crs to the same in aarhus and playgrounds. 
 #transform CRS
 # Get the CRS from the aarhus object
 the_crs <- crs(aarhus, asText = TRUE) #it is +proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs
 
 # Project playgrounds to match the CRS of aarhus
 playgrounds_crs <- st_transform(playgrounds, crs = the_crs)
-
 
 # Look at the CRS to see if they match
 st_crs(playgrounds_crs) # +proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs
