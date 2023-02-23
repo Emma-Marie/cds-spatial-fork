@@ -40,7 +40,7 @@ opts_knit$set(width=75)
 We will use the `sf`, `raster`, and `tmap` packages.
 Additionally, we will use the `spData` and `spDataLarge` packages that provide new datasets. To install the `spDataLarge`, please load it directly from the author's github repository at https://github.com/Nowosad/spDataLarge. If the line in the chunk below does not work, check the repository for the other options.
 
-```{r}
+```{r packages}
 library(sf)
 library(raster)
 library(tmap)
@@ -243,7 +243,6 @@ crs(srtm) #the crs is +proj=longlat +datum=WGS84 +no_defs
 
 #create a new object containing the same information as srtm (for now)
 srtm2 <- srtm
-
 
 #create a new variable containing the crs of zion
 
