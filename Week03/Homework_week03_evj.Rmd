@@ -178,14 +178,18 @@ st_crs(zion)
 library(tidyverse)
 view(zion)
 zion$geom
-#I think zion is a projection (using northing and southing), because the values of the x- and y-axis' are so big. 
+#I think zion is a projection (using northing and southing), because the values of the x- and y-axis' are such larghe numbers. 
  
+zion
+# number of attributes??
 
 zion
-# I don't know how many attributes does it contain??? 
+# the geometry of Zion is a single polygon with 11 feields
 
-zion
-# the geometry of Zion is a polygon.
+dim(zion) 
+#the data has the dimensions 1x12
+
+
 
 ```
 
@@ -204,6 +208,7 @@ crs(srtm)
 srtm
 # How many attributes does it contain???
 
+dim(srtm)
 srtm
 # The data has two dimensions: 457 rows and 465 columns
 
@@ -237,32 +242,26 @@ Reprojecting the `srtm` dataset
 library(sf)
 library(raster)
 
-#Get the crs of zion and srtm
-st_crs(zion, asText=TRUE)#the crs is UTM Zone 12, Northern Hemisphere
+#Checking if the CRSs are different --> they are!
+st_crs(zion)#the crs is UTM Zone 12, Northern Hemisphere
 crs(srtm) #the crs is +proj=longlat +datum=WGS84 +no_defs
 
+
+the_other_crs <- crs(zion)
+
+
 #create a new object containing the same information as srtm (for now)
-srtm2 <- srtm
-
-#create a new variable containing the crs of zion
-
-#the_crs <- CRS('+init=EPSG:16012')
-#the_crs <- "UTM Zone 12, Northern Hemisphere"
-#the_crs <- st_crs(zion, asText = TRUE) 
-
-# Project srtm to match the CRS of zion
-#srtm2_crs <- projectRaster(srtm2, crs = the_crs, method = "ngb")
-srtm2_crs <- projectRaster(srtm2, crs = 4326, method = "ngb")
-
-crs(srtm2) <- srtm2_crs
-
+srtm2 <- projectRaster(srtm, crs = the_other_crs, method = "ngb")
 
 crs(srtm2)
 
+#Checking if thr crs's are the same
+st_crs(srtm2) == st_crs(zion) # TRUE --> they are the same
 
 ### Vizualisation ###
-plot(st_geometry(zion2))
-plot(srtm, add = TRUE)
+
+plot(srtm2)
+plot(st_geometry(zion), add = TRUE)
 
 
 ```
@@ -278,30 +277,26 @@ Now I will reproject the `zion` dataset.
 
 ```{r reproject-zion}
 #find crs
-st_crs(zion)#the crs is UTM Zone 12, Northern Hemisphere
-crs(srtm) #the crs is +proj=longlat +datum=WGS84 +no_defs
+the_crs <- crs(srtm, asText=TRUE)
 
-# assigning the crs of srtm to an object
-crs_2 <-"+proj=longlat +datum=WGS84 +no_defs"
-
-# creating a zion2 object
-zion2 <- zion
-
-# setting the crs of zion2 to be the crs_2
-st_crs(zion2) <- crs_2
+# creating a zion2 object with the new crs
+zion2 <- st_transform(zion, crs = the_crs)
 
 #checking the crs of zion2
 st_crs(zion2)
-# the crs is now +proj=longlat +datum=WGS84 +no_defs
+# the crs is now +proj=longlat +datum=WGS84 +no_defs which is the crs of srtm!
 
+#Checking if thr crs's are the same
+st_crs(srtm) == st_crs(zion2) # TRUE --> they are the same
 
 # Visualization
-plot(st_geometry(zion2))
-plot(srtm, add = TRUE)
+
+plot(srtm)
+plot(st_geometry(zion2), add = TRUE)
 
 ```
  
- Now the crs's of zion and srtm match!
+ Now the crs's of zion and srtm match! And therefore I'm able to create the two plots!
 
 ## Refs
 Tennekes, Martijn. 2019. Tmap: Thematic Maps. https://CRAN.R-project.org/package=tmap.
