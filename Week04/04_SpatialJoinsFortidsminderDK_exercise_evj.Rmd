@@ -107,10 +107,15 @@ least <- viking_neigh %>%
   
   
 # Plot the municipalities with fewest Viking finds in red over DK municipalities
-plot(st_geometry(municipalities_25832), col = "grey", border = "white")
+plot(st_geometry(municipalities_25832$geometry), col = "grey", border = "white")
 plot(municipalities_25832 %>% 
        filter(NAME_2 %in% least$NAME_2) %>% 
        st_geometry(), col = "red", add = T) 
+
+
+#Adelas solution (which gives more red marks on the map)
+plot(st_geometry(municipalities_25832$geometry), col = "grey", border = "white")
+plot(municipalities_25832[which(st_intersects(least, municipalities_25832, sparse = FALSE)), ]$geometry, col = "red", add = T) 
 
 
 ```
@@ -190,11 +195,11 @@ plot(st_geometry(viking_clip), col = "red", add = TRUE, pch = 19)
 class(viking_int)
 ```
 
-  - a sgbp and list
+  - the object is a sgbp and also a list. 
   
 2. Why do we use `parks[cont,]` to view the fully contained parks in the buffer plot?
 
-- after finding all the parks contained in the buffer, we created a new column in the parks data set with the contained parks. This entire column (all he rows in it) we are calling with `parks[cont,]`. 
+- after finding all the parks contained in the buffer, we created a new column in the parks data set with the contained parks. This entire column (all he rows in it) we are calling with `parks[cont,]`???
 
 3. How many parks and viking monuments respectively are there within the buffer?
 
@@ -226,7 +231,7 @@ In this exercise you'll measure the distance from the Nobelparken to the viking 
 nobel <- st_centroid(nb_buf)
 
 # Test whether the CRS match
-crs(viking_clip) == crs(nobel)
+crs(viking_clip) == crs(nobel) # they do
 
 # Compute the distance between the Nobelparken and the clipped viking monuments
 d <- st_distance(viking_clip, nobel)
@@ -237,18 +242,16 @@ head(d)
 # Find the index of the 10 nearest viking monuments
 sorted <- sort(d, decreasing = FALSE) # sort monuments by proximity
 
-#nearest10 <- sorted %>% 
-#  slice(1:10)
-
-#sorted[10] #1912.264
-
-
-nearest10index <- which (< 1912.264)  # which distances are smaller than the 10th smallest distance
+nearest10index <- which(d<=sorted[10])
 
 # Identify the viking monuments that are the nearest, what kinds of monuments are they?
-viking_clip[nearest10,]$anlaegsbet
+viking_clip[nearest10index,]$anlaegsbet
 
 # Plot the results by re-running the plot from exercise 6
+plot(nb_buf$geometry, border = "blue")
+plot(st_geometry(parks[cont,]), add = TRUE, col = "aquamarine", border = "grey")
+plot(viking_clip[nearest10index,]$geometry, add = TRUE, col = "red", pch = 4)
+
 ```
 
 Nice work! If you look at the result for the last line of code carefully you'll see that the closest viking monument is Befæstning at 1580m. In this case one of our feature sets was a single feature. You may end up applying this function in situations where there are multiple features in both objects. In this situation `sf` will return a matrix. Distance matrices take long time to calculate and so sometimes you calculate distance between the nearest two features from two different datasets. That will be the homework :)
@@ -269,10 +272,25 @@ Let us now recap some of the functionality we have learnt in the previous two we
 
 
 ```{r}
-# /Start Code/ #
+library(tmap)
+
+stenalder_monu <- monuments %>% 
+  filter(monuments$datering == "Stenalder")
+
+stenalder_monu
+
+# Join the chosen monuments with the municipalities
+stenalder <- st_join(stenalder_monu, municipalities_25832) # the two sets of data is combined into one data fram
+
+head(stenalder)
+
+#create (chloropleth?) map of Danish municipalities showing the density of the target monuments in a meaningful way. 
 
 
-# /End Code/ #
+plot(st_geometry(municipalities_25832), border = "grey")
+plot(stenalder_monu$geometry, add = TRUE, col = "blue", pch = 4)
+
+#OBS NOT a chloropleth map - but Adelas solution doesn't work either :-(
 ```
 
 
