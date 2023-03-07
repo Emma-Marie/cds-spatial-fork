@@ -38,14 +38,10 @@ Number of households without cars are available via Danmark Statistik via the  "
 
 * Load the dataset
 * rename the V3 and V4 column to nc2020 and nc2021. (In the provided dataset the numeric columns are number of carless households in year 2020 and in 2021
-```{r more-data, eval = FALSE}
-no_cars <- _________("../data/no_cars.csv", header = FALSE)
-names___________ <- c("municipality","nc2020", "nc2021") 
-```
 
 ```{r more-data-sol, echo = FALSE}
 no_cars <- read.csv("../data/no_cars.csv", header = FALSE)
-names(no_cars)[2:4] <- c("municipality","nc2020", "nc2021") 
+names(no_cars)[3:4] <- c("nc2020", "nc2021") 
 ```
 It would be nice to know the percentage of households without a car
 Next, get municipalities of Midtjylland and join up with the no_cars attributes, selecting which kommunes have the least cars and are therefore most at risk.
@@ -65,45 +61,11 @@ Create a simple feature or spatial polygons dataset that contains information on
 * Load municipality data either via `getData()` or from a saved object from Week03
 * Create `no_cars_pct_mun` object by joining the households with no car `hh_nocar` object to the municipalities with `inner_join()`. Beware to preserve the spatial dimension of the `munic` for later use in a map. Look up the function to know how exactly to specify the shared columns. You may also want to rename the `pop` columns first so they are easier to map to `munic` 
 
-```{r households-mun-nocars, eval = FALSE}
-# Load tidyverse
-library(tidyverse)
 
-# load household data
-hh <- read.csv2("../data/households2020_2021.csv", header = FALSE)
+* Create a thematic map of `no_cars_pct_mun` by filtering municipalities that have 25+ percent of households without a car. I recommend `mapview()`, but you are free to use your favorite library.  Mapview usually works well at the end of tidyverse pipeline but as it may interfere with other libraries, I recommend saving the script and upon restart, running only the `mapview()` code chunk so as to avoid interference. 
+* *Which areas in Midtjylland have 25 and more percent of carless households?*
 
-# create a summary of households per municipality
-hh_mun <- hh %>% 
-  group_by(_____) %>% 
-  summarize(sum=sum(____)) %>% 
-  rename(municipality = V2, households = sum)
-
-# check total households
-sum(hh_mun$households)
-
-# join households to no_car dataset and calculate percentages
-hh_nocar <- hh_mun %>% inner_join(no_cars, by = "municipality") 
-hh_nocar <- hh_nocar %>% 
-  mutate(nc2020pct = _______/households*100, 
-         nc2021pct = _______/households*100)
-
-# load population (not necessary, I just want to see)
-pop <-  read.csv2("../data/munic_pop_2022Q1.csv", sep = ",", skip = 2)
-
-names(pop)[1] <- "Name"
-names(pop)[2] <- "Pop22"
-sum(pop$Pop22)
-
-# load municipalities
-________
-
-# join municipalities with the carless households dataset
-
-no_cars_pct_mun  <-  munic %>% dplyr::inner_join(hh_nocar, by = c("NAME_2"="municipality")) # this preserves the spatial dimension!
-
-```
-
-```{r households-mun-nocars-sol, echo = FALSE}
+```{r thematic-map}
 # Load tidyverse
 library(tidyverse)
 
@@ -119,6 +81,10 @@ hh_mun <- hh %>%
 # check total households
 sum(hh_mun$households)
 
+#name the column V2 municipality in the "no_cars" data
+names(no_cars)[2] <- "municipality" 
+
+
 # join households to no_car dataset and calculate percentages
 hh_nocar <- hh_mun %>% inner_join(no_cars, by = "municipality") 
 hh_nocar <- hh_nocar %>% 
@@ -132,29 +98,19 @@ names(pop)[1] <- "Name"
 names(pop)[2] <- "Pop22"
 sum(pop$Pop22)
 
-
 # load municipalities
 library(sf)
 munic <- readRDS("../data/gadm36_DNK_2_sp.rds")
 munic <- as(munic, "sf")
 
-
 # join municipalities with the carless households dataset
 
-# no_cars_pct_mun <- hh_nocar %>% dplyr::inner_join(munic, by = c("municipality" = "NAME_2")) # this will eliminate the spatial dimension!
 no_cars_pct_mun  <-  munic %>% dplyr::inner_join(hh_nocar, by = c("NAME_2"="municipality")) # this preserves the spatial dimension!
-
-```
-
-
-* Create a thematic map of `no_cars_pct_mun` by filtering municipalities that have 25+ percent of households without a car. I recommend `mapview()`, but you are free to use your favorite library.  Mapview usually works well at the end of tidyverse pipeline but as it may interfere with other libraries, I recommend saving the script and upon restart, running only the `mapview()` code chunk so as to avoid interference. 
-* *Which areas in Midtjylland have 25 and more percent of carless households?*
-
-```{r thematic-map-sol, echo = FALSE}
 
 # see if your join worked
 library(mapview)
 library(leaflet)
+
 no_cars_pct_mun %>% 
   dplyr::filter(nc2021pct >= 25) %>% 
   mapview(zcol = "nc2021pct")
@@ -164,10 +120,6 @@ no_cars_pct_mun %>%
 Now of course, you have the whole situation in Denmark. In the next steps, you need to constrain the municipalities with carless households spatially to those in Midtjylland and check the overlap with hospital isochrones, taking the area outside these isochrones with `st_difference()`.
 
 ```{r thematic-map-Midt}
-## YOUR CODE HERE
-```
-
-```{r thematic-map-Midt-sol}
 #region <- getData(country = "DNK", level = 1)
 region <- readRDS("../data/gadm36_DNK_1_sp.rds")
 
@@ -178,7 +130,7 @@ Midt <- region %>%
 
 # intersect with municipalities
 no_cars_pct_midt <- no_cars_pct_mun %>% 
-  st_simplify(dTolerance = 100) %>% # Let's reduce the weight
+  st_simplify(dTolerance = 100) %>% # reduces the weight
  # st_transform(4326) %>% 
   st_intersection(Midt$geometry)
 
@@ -204,20 +156,15 @@ To do this, follow these steps:
 
 
 ```{r risk-areas}
-## YOUR CODE HERE
-```
-
-```{r risk-areas-sol, echo = FALSE}
-## Suggested progress
 
 cycling_isos <- readRDS("../data/cycling_isos.rds")
 
-target_areas <- no_cars_pct_midt %>%
-  #st_transform(4326) %>%
-  filter(nc2021pct >= 25) %>%
-  st_difference(
-    st_union(cycling_isos)
-  )
+#check that crs is 4326
+st_crs(no_cars_pct_midt) #it says ID["EPSG",4326]
+
+vulnerable_areas <- no_cars_pct_midt %>% 
+  filter(nc2021pct >= 25) %>% #municipalities with over 25% of households not having a car
+  st_difference(st_union(cycling_isos)) # only munis outside the 20-min cycling iso
 
 library(mapboxapi)
 
@@ -226,17 +173,38 @@ mapbox_map <- leaflet() %>%
                  username = "mapbox") 
 
 mapbox_map %>%
-  addPolygons(data = target_areas)
+  addPolygons(data = vulnerable_areas)
 ```
 
 ### Questions:
 
 *3. Are there any areas that are located beyond a 20-minute bike-ride of a hospital that have proportionally lower access to cars? Where are they and what is their total area?*
 
+```{r lower-acces-cars}
+area35pct <- no_cars_pct_midt %>% 
+  filter(nc2021pct >= 35) %>% #municipalities with over 35% of households not having a car
+  st_difference(st_union(cycling_isos)) # only munis outside the 20-min cycling iso
+
+
+#check which areas
+
+area35pct_size <- st_union(area35pct) # turns the separate areas into one
+mapview(area35pct_size) # maps area
+st_area(area35pct_size)/1000000 #find size of area in sq kms
+
+#map the area
+mapbox_map <- leaflet() %>%
+  addMapboxTiles(style_id = "streets-v11",
+                 username = "mapbox") 
+
+mapbox_map %>%
+  addPolygons(data = area35pct_size)
+
+```
+
+- In some areas 35% of the households or above have no aces to a car. This area is 442,2216 square kms. 
+
+
 *4. How would you ensure residents in these areas have reasonable access to hospitals?*
 
-```{r area}
-target25pct <- st_union(target_areas) # gets you area in sq kms
-mapview(target25pct)
-st_area(target25pct)/1000000
-```
+- From the island Endelave there should be acces to a boat to sail sick people to the nearest hospital on the main land. The rest of the area should have good public transportation taking you to the nearest hospital. 
