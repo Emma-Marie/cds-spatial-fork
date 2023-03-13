@@ -55,10 +55,11 @@ All features in mapboxapi require a valid Mapbox access token to work. Now that 
 
 ```{r mapbox-auth, eval = FALSE}
 # either paste it in directly, or in a txt file that you store locally and "ignore"
-#my_token <- "YOUR TOKEN"
-my_token <- read_file("mytoken_evj.txt")
-
 library(mapboxapi)
+my_token <- "pk.eyJ1IjoiZW1tYW1hcmllIiwiYSI6ImNsZXdweHpjODJjbHkzcnJ2MHluYmk1YTIifQ.IH4-B3JGAFTHjyjvFCtL-w"
+#my_token <- read_file("mytoken_evj.txt")
+
+
 mb_access_token(my_token, install = TRUE, overwrite = TRUE)
 ```
 
@@ -537,8 +538,6 @@ These results can be visualized on our Mapbox map:
 
 
 
-
-
 #pal <- colorNumeric("viridis", walking_isos$time, na.color = "transparent")
 
 leaflet() %>%
@@ -576,19 +575,31 @@ Dk <- getData("GADM", country = "DNK", level=1)
 view(Dk)
 Midtjylland <- Dk[2,]
 
+#projecting the data into 2D
+Midtjylland <- st_as_sf(Midtjylland) %>% st_transform(25832)
+driving_isos <- st_transform(driving_isos, 25832)
+cycling_isos <- st_transform(cycling_isos, 25832)
+
 #find the area that doesn't intersect with the driving polygons (st_difference())
 
-outside_driving20 <- st_difference(st_geometry(driving_isos, Midtjylland))
+outside_driving20 <- st_difference(st_union(driving_isos), Midtjylland)
+library(mapview)
+mapview(outside_driving20)
 
 #isochromes: object <- st_area(Midt)-st_area(st_union(iso_driving20)) -->gives area i km2
-st_area(Midtjylland)-st_area(st_union(outside_driving20))
+(st_area(Midtjylland)-st_area(st_union(outside_driving20)))/1000000
 
-class(Midtjylland)
-class(outside_driving20)
+#find the area that doesn't intersect with the cycling polygons (st_difference())
+
+outside_cycling20 <- st_difference(st_union(cycling_isos), Midtjylland)
+mapview(outside_cycling20)
+
+#isochromes: object <- st_area(Midt)-st_area(st_union(iso_driving20)) -->gives area i km2
+(st_area(Midtjylland)-st_area(st_union(outside_driving20)))/1000000 # 13023.96 km2 are not covered by the 20-min drive
+
+(st_area(Midtjylland)-st_area(st_union(outside_cycling20)))/1000000 # 13123.27 km2 are not covered by the 20min bikeride. 
 
 
-#st_difference(Midt, object)
-st_difference(Midtjylland, iso)
 ```
 
 
