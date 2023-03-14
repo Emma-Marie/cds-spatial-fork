@@ -47,7 +47,7 @@ Raster data can be very big depending on the extent and resolution (grid size). 
 * Use the `getValues()` function on the elevation object to read in all the data.
 * Use the `hist()` function to create a quick histogram of the elevation values. Note the pile of values near -9999, these should be `NA`  (any idea why?) and we will address this later.
 
-```{r access-raster, echo=TRUE, eval=FALSE}
+```{r access-raster, echo=TRUE, eval=TRUE}
 # Library
 library(raster)
 library(rgdal)
@@ -121,7 +121,7 @@ On some OSs, `raster` package does not support `sf` objects. This should not hap
 * Plot the `mounds_bb` and the `mounds` to see how these two objects relate.
 * Crop the `elevation` layer by the `mounds` object using the `crop()` function and create a smaller `elev` object
 * Plot the `elev` and `mounds` and the `mounds_bb` together.
-```{r  mounds-crop, eval = FALSE}
+```{r  mounds-crop, eval = TRUE}
 library(sf)
 
 #load data
@@ -286,7 +286,7 @@ What you will do in this exercise is essentially: identify the most prominent lo
 * If you have not cropped the two rasters to the same extent yet, you can do so inside the `overlay()` function
 
 
-```{r overlay, eval=FALSE, echo=TRUE}
+```{r overlay, eval=TRUE, echo=TRUE}
 # Check in on the elevation and read in prominence layer
 elevation
 prominence <- raster("../data/prominence1500m.tif")
@@ -306,6 +306,9 @@ elevation_prom_overlay <- overlay(crop(elevation, prominence), prominence, fun =
 
 # Plot the result (low elevation and high prominence areas)
 plot(elevation_prom_overlay)
+
+#check value range
+elevation_prom_overlay # it ranges from 0 to 1
 ```
 
 Congratulations! You've now learned to perform raster math using the raster function `overlay()`. You limited to areas with > 400m & <650m elevation and > 60% prominence, these areas should harbor the most prominent mounds (or defense-ready areas if associated with settlements) in Kazanlak.
@@ -314,7 +317,13 @@ Congratulations! You've now learned to perform raster math using the raster func
 
 *3. What is the actual value range in the `prom_el_overlay` raster? * 
 
+- it ranges from 0 to 1 --> so you can be inside the area in the raster (1) or outside the area (0). 
+
+
 *4. What area is covered by each cell?*
+
+- Each cell covers 30x30 meters (the resolution is 30, 30 (x, y))
+
 
 # Task 7 - HOMEWORK: Inspect the most prominent mounds
 
@@ -335,12 +344,54 @@ Find the mounds that enjoy the most prominent locations as well as those that fe
 * Plot both these sets of mounds using the `mapview()` library and compare their locations. 
 
 ```{r prom-mnd-ex}
-# YOUR CODE
+#check objects
+mounds
+prominence
+elevation_prom_overlay
+
+#plots
+plot(elevation_prom_overlay)
+plot(mounds, color = "black", add = TRUE)
+
+plot(prominence)
+plot(mounds, color= "black", add = TRUE)
+
+#extract values elevation_prom_overlay and create a column
+mounds$prom_el_overlay <- terra::extract(elevation_prom_overlay, mounds)
+
+#extract values prominence and create a column
+mounds$prominence<- terra::extract(prominence, mounds)
+
+#object of mounds on highly visible locations (using prom_el_overlay)
+high_vis_mounds <- subset(mounds, mounds$prom_el_overlay %in% "1")
+nrow(high_vis_mounds)# there are 132 mounds located on highly visible locations
+
+#object of the 25 mounds with the highest prominence values
+highest25_mounds <- dplyr::slice_max(
+  mounds, mounds$prominence,n=25,
+  by = NULL,
+  with_ties = TRUE,
+  na_rm = FALSE
+)
+
+nrow(highest25_mounds) # 25 rows as it should contain!
+
+#TRAP_Codes of the 25 mounds with highest prominence val
+highest25_trapcode <- highest25_mounds$TRAP_Code
+
+
+#plot
+library(mapview)
+mapview(highest25_mounds, zcol = "prominence")
+mapview(high_vis_mounds)
+
 ```
 
 ### Question:
 
 *5. How do the mounds with high prom_el_overlay values differ from those with high prominence? *
+
+- Some of the mounds from the group of 25 mounds with the highest prominence (```highest25_mounds```) are not in the ```high_vis_mounds``` - how come?
 
 # Task 8 - HOMEWORK: Sum raster values across polygons - assessing prominence of past settlements
 
@@ -361,29 +412,28 @@ In this exercise, you will load the layer of ancient settlements for the Kazanla
 
 ```{r mask-crop-sites,eval = FALSE}
 # Read in the site polygons
-sites <- ______("data/KAZ_nuclei.shp")
+sites <- st_read("../data/KAZ_nuclei.shp")
 
 # Plot the sites
-plot(elevation_prom_overlay);plot(__________)
-
+plot(elevation_prom_overlay);plot(sites, add = TRUE)
 
 # Create a raster mask from the elevation_prom_overlay using the sites
-sites_mask <- _____________
+sites_mask <- mask(elevation_prom_overlay, sites)
 
 # Crop the raster mask to the sites
-sites_strat <- _____________
+sites_strat <- crop(sites_mask, sites)
 
 # Plot and compare the results
-plot(sites_mask)
-plot(sites_strat)
+mapview(sites_mask)
+mapview(sites_strat)
 
+# extract the high elevation & prominence values for the `sites` object into `defensive` object
 
-# Which ones overlap?
-defensive <- raster::extract(_______, ______)
-
+defensive <- raster::extract(elevation_prom_overlay, sites_strat)
 
 # Produce a list of the sites that occupy at least 6 grid cells of most prominent terrain
-sites[_______(sapply(defensive, sum)>6),]
+sites[______(sapply(defensive, sum)>6),]
+
 ```
 
 Lovely work! Manipulating rasters and mastering raster-vector interactions is the bread and butter of spatial data wrangling :)
