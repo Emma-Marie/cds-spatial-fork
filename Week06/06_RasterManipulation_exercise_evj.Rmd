@@ -418,6 +418,10 @@ sites <- st_read("../data/KAZ_nuclei.shp")
 plot(elevation_prom_overlay);plot(sites, add = TRUE)
 
 # Create a raster mask from the elevation_prom_overlay using the sites
+
+#mask <- sites
+#values(mask) <- sample(c(NA, TRUE), 36, replace = TRUE)
+
 sites_mask <- mask(elevation_prom_overlay, sites)
 
 # Crop the raster mask to the sites
@@ -428,11 +432,10 @@ mapview(sites_mask)
 mapview(sites_strat)
 
 # extract the high elevation & prominence values for the `sites` object into `defensive` object
-
-defensive <- raster::extract(elevation_prom_overlay, sites_strat)
+#defensive <- raster::extract(sites_strat, )
 
 # Produce a list of the sites that occupy at least 6 grid cells of most prominent terrain
-sites[______(sapply(defensive, sum)>6),]
+#sites[______(sapply(defensive, sum)>6),]
 
 ```
 
